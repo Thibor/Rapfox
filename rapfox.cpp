@@ -19,6 +19,8 @@
 using namespace std;
 
 string name = "Rapfox";
+#define MAX_DEPTH 100
+#define MAX_SCORE 50000
 
 #define MONTH (\
   __DATE__ [2] == 'n' ? (__DATE__ [1] == 'a' ? "01" : "06") \
@@ -326,8 +328,7 @@ typedef struct {
 
 /* get_ms() returns the milliseconds elapsed since midnight,
    January 1, 1970. */
-int get_time_ms()
-{
+int get_time_ms() {
 	struct timeb timebuffer;
 	ftime(&timebuffer);
 	return (timebuffer.time * 1000) + timebuffer.millitm;
@@ -1369,7 +1370,7 @@ static inline void sort_moves(moves* move_list)
 }
 
 // quiescence search
-static inline int quiescence_search(int alpha, int beta, int depth)
+static inline int SearchQuiescence(int alpha, int beta, int depth)
 {
 	// update nodes count
 	nodes++;
@@ -1414,7 +1415,7 @@ static inline int quiescence_search(int alpha, int beta, int depth)
 		}
 
 		// recursive call
-		int score = -quiescence_search(-beta, -alpha, depth);
+		int score = -SearchQuiescence(-beta, -alpha, depth);
 
 		// restore board state
 		take_back();
@@ -1436,7 +1437,7 @@ static inline int quiescence_search(int alpha, int beta, int depth)
 }
 
 // negamax search
-static inline int negamax_search(int alpha, int beta, int depth)
+static inline int SearchAlpha(int alpha, int beta, int depth)
 {
 	// legal moves
 	int legal_moves = 0;
@@ -1453,7 +1454,7 @@ static inline int negamax_search(int alpha, int beta, int depth)
 	// escape condition
 	if (!depth)
 		// search for calm position before evaluation
-		return quiescence_search(alpha, beta, depth);
+		return SearchQuiescence(alpha, beta, depth);
 
 	// update nodes count
 	nodes++;
@@ -1497,7 +1498,7 @@ static inline int negamax_search(int alpha, int beta, int depth)
 		legal_moves++;
 
 		// recursive call
-		int score = -negamax_search(-beta, -alpha, depth - 1);
+		int score = -SearchAlpha(-beta, -alpha, depth - 1);
 
 		// restore board state
 		take_back();
@@ -1543,7 +1544,7 @@ static inline int negamax_search(int alpha, int beta, int depth)
 	{
 		// check mate detection
 		if (in_check)
-			return -49000 + ply;
+			return -MAX_SCORE + ply;
 
 		// stalemate detection
 		else
@@ -1553,7 +1554,7 @@ static inline int negamax_search(int alpha, int beta, int depth)
 }
 
 // search position
-static void Search(int depth, int time)
+static void SearchIterate(int depth, int time)
 {
 	// init nodes count
 	nodes = 0;
@@ -1570,9 +1571,15 @@ static void Search(int depth, int time)
 	for (int current_depth = 1; current_depth <= depth; current_depth++)
 	{
 		// search position with current depth 3
-		score = negamax_search(-50000, 50000, current_depth);
+		score = SearchAlpha(-MAX_SCORE,MAX_SCORE, current_depth);
 		clock_t elapsed = clock() - start_time;
-		cout << "info score cp " << score << " depth " << current_depth << " time " << elapsed << " nodes " << nodes << " pv ";
+		int del = MAX_SCORE - MAX_DEPTH;
+		if (score > del)
+			cout << "info score mate " << (MAX_SCORE - score + 1) / 2 << " depth " << current_depth << " time " << elapsed << " nodes " << nodes << " pv ";
+		else if (score < -del)
+			cout << "info score mate " << (-MAX_SCORE - score) / 2 << " depth " << current_depth << " time " << elapsed << " nodes " << nodes << " pv ";
+		else
+			cout << "info score cp " << score << " depth " << current_depth << " time " << elapsed << " nodes " << nodes << " pv ";
 		// output best move
 		//printf("info score cp %d depth %d nodes %ld pv ", score, current_depth, nodes);
 
@@ -1739,10 +1746,8 @@ static void ParsePosition(vector<string> commands) {
 	SetFen(fen);
 	for (string m : moves)
 	{
-		//cout << "Making move: " << m << endl;
 		int move = ParseMove(m.c_str());
 		MakeMove(move, all_moves);
-		//PrintBoard();
 	}
 
 }
@@ -1754,8 +1759,6 @@ static void UciQuit() {
 static void UciTest() {
 	UciCommand("position startpos moves e2e4 e7e5 g1f3 b8c6 f1b5 a7a6 b5a4 f8e7 d2d4 e5d4 f3d4 g8f6 d4c6 d7c6 d1d8 e7d8 f2f3 b7b5 a4b3 c6c5 c2c4 b5c4 b3c4 c8e6 b1a3 e8g8 c4e6 f7e6 c1e3 d8e7 a1c1 a8b8 b2b3 f6d7 e1g1 b8d8 a3c4 f8e8 e3f4 d8c8 f1d1 e8d8 c4a5 d7f6 d1d8 c8d8 a5c6 d8e8 c6e7 e8e7 c1c5 f6e8 f4e5 e7d7 c5a5 d7d1 g1f2 d1d2 f2g3 c7c5 a5a6 g8f7 a6a7 f7f8 a2a4 h7h5 a4a5 h5h4 g3h4 d2g2 a5a6");
 	UciCommand("go depth 5");
-	//PrintAttackedSquares(0);
-	//PrintMoves();
 }
 
 void UciCommand(string line) {
@@ -1775,7 +1778,7 @@ void UciCommand(string line) {
 		int g_max_time = GetInt(commands, side == white ? "wtime" : "btime", 0) / 30;
 		if (!g_max_time)
 			g_max_time = GetInt(commands, "movetime", 0xffffff);
-		Search(g_max_depth, g_max_time);
+		SearchIterate(g_max_depth, g_max_time);
 	}
 	else if (commands[0] == "print")
 		PrintBoard();
@@ -1799,11 +1802,3 @@ int main() {
 	UciLoop();
 	return 0;
 }
-
-
-
-
-
-
-
-
