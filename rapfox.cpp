@@ -107,13 +107,13 @@ static char PieceToPromotion(int p) {
 int material_score[13] = {
 	  0,      // empty square score
 	100,      // white pawn score
-	310,      // white knight scrore
+	310,      // white knight score
 	320,      // white bishop score
 	500,      // white rook score
    900,      // white queen score
   10000,      // white king score
    -100,      // black pawn score
-   -310,      // black knight scrore
+   -310,      // black knight score
    -320,      // black bishop score
    -500,      // black rook score
   -900,      // black queen score
@@ -1295,9 +1295,7 @@ int pv_length[64];
 int ply = 0;
 
 // score move for move ordering
-static inline int score_move(int move)
-{
-	// PV move
+static inline int score_move(int move){
 	if (pv_table[0][ply] == move)
 		// score 20000 ( search it first )
 		return 20000;
@@ -1368,21 +1366,25 @@ static inline void sort_moves(moves* move_list)
 		}
 	}
 }
+#define NODE_CHECK 9000
+bool stop = false;
+int g_max_depth = 0;
+long nodeCheck = NODE_CHECK;
+clock_t start_time=0;
+clock_t g_max_time = 0;
 
 // quiescence search
-static inline int SearchQuiescence(int alpha, int beta, int depth)
-{
-	// update nodes count
-	nodes++;
-
-	// evaluate position
+static inline int SearchQuiescence(int alpha, int beta, int depth){
+	if (++nodes > nodeCheck)
+	{
+		nodeCheck = nodes + NODE_CHECK;
+		stop = clock() - start_time > g_max_time;
+	}
+	if (stop)
+		return 0;
 	int eval = evaluate_position();
-
-	//  fail hard beta-cutoff
 	if (eval >= beta)
 		return beta;
-
-	// alpha acts like max in MiniMax
 	if (eval > alpha)
 		alpha = eval;
 
@@ -1439,7 +1441,6 @@ static inline int SearchQuiescence(int alpha, int beta, int depth)
 // negamax search
 static inline int SearchAlpha(int alpha, int beta, int depth)
 {
-	// legal moves
 	int legal_moves = 0;
 
 	// best move
@@ -1456,8 +1457,13 @@ static inline int SearchAlpha(int alpha, int beta, int depth)
 		// search for calm position before evaluation
 		return SearchQuiescence(alpha, beta, depth);
 
-	// update nodes count
-	nodes++;
+	if (++nodes > nodeCheck)
+	{
+		nodeCheck = nodes + NODE_CHECK;
+		stop = clock() - start_time > g_max_time;
+	}
+	if (stop)
+		return 0;
 
 	// is king in check?
 	int in_check = is_square_attacked(king_square[side], side ^ 1);
@@ -1538,15 +1544,10 @@ static inline int SearchAlpha(int alpha, int beta, int depth)
 				best_so_far = move_list->moves[count];
 		}
 	}
-
-	// if no legal moves
 	if (!legal_moves)
 	{
-		// check mate detection
 		if (in_check)
 			return -MAX_SCORE + ply;
-
-		// stalemate detection
 		else
 			return 0;
 	}
@@ -1557,8 +1558,10 @@ static inline int SearchAlpha(int alpha, int beta, int depth)
 static void SearchIterate(int depth, int time)
 {
 	// init nodes count
+	stop = false;
 	nodes = 0;
-	clock_t start_time = clock();
+	nodeCheck = NODE_CHECK;
+	start_time = clock();
 	// clear PV, killer and history moves
 	memset(pv_table, 0, 16384);  // sizeof(pv_table)
 	memset(killer_moves, 0, 512);  // sizeof(killer_moves)
@@ -1572,6 +1575,8 @@ static void SearchIterate(int depth, int time)
 	{
 		// search position with current depth 3
 		score = SearchAlpha(-MAX_SCORE,MAX_SCORE, current_depth);
+		if (stop)
+			break;
 		clock_t elapsed = clock() - start_time;
 		int del = MAX_SCORE - MAX_DEPTH;
 		if (score > del)
@@ -1591,7 +1596,7 @@ static void SearchIterate(int depth, int time)
 					<< PieceToPromotion(get_move_piece(pv_table[0][i]));
 		}
 		cout << endl;
-		if (elapsed > time / 16)
+		if (elapsed > time / 8)
 			break;
 	}
 
@@ -1774,8 +1779,8 @@ void UciCommand(string line) {
 	else if (commands[0] == "position")
 		ParsePosition(commands);
 	else if (commands[0] == "go") {
-		int g_max_depth = GetInt(commands, "depth", 0xff);
-		int g_max_time = GetInt(commands, side == white ? "wtime" : "btime", 0) / 30;
+		g_max_depth = GetInt(commands, "depth", 0xff);
+		g_max_time = GetInt(commands, side == white ? "wtime" : "btime", 0) / 30;
 		if (!g_max_time)
 			g_max_time = GetInt(commands, "movetime", 0xffffff);
 		SearchIterate(g_max_depth, g_max_time);
