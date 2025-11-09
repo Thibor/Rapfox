@@ -1,51 +1,25 @@
 #include <stdio.h>
 #include <string.h>
-#include "windows.h"
-#include <time.h>
-#include <array>
-#include <cstdint>
-#include <cstdio>
-#include <cstring>
-#include <ctime>
-#include <format>
 #include <iostream>
-#include <random>
-#include <string>
-#include <thread>
 #include <vector>
 #include <sstream>
-#include <sys/timeb.h>
 
 using namespace std;
 
-string name = "Rapfox";
+#define NAME "Rapfox"
+#define VERSION "2025-10-13"
 #define MAX_DEPTH 100
 #define MAX_SCORE 50000
 
-#define MONTH (\
-  __DATE__ [2] == 'n' ? (__DATE__ [1] == 'a' ? "01" : "06") \
-: __DATE__ [2] == 'b' ? "02" \
-: __DATE__ [2] == 'r' ? (__DATE__ [0] == 'M' ? "03" : "04") \
-: __DATE__ [2] == 'y' ? "05" \
-: __DATE__ [2] == 'l' ? "07" \
-: __DATE__ [2] == 'g' ? "08" \
-: __DATE__ [2] == 'p' ? "09" \
-: __DATE__ [2] == 't' ? "10" \
-: __DATE__ [2] == 'v' ? "11" \
-: "12")
-#define DAY (std::string(1,(__DATE__[4] == ' ' ?  '0' : (__DATE__[4]))) + (__DATE__[5]))
-#define YEAR ((__DATE__[7]-'0') * 1000 + (__DATE__[8]-'0') * 100 + (__DATE__[9]-'0') * 10 + (__DATE__[10]-'0') * 1)
 
 
 static void PrintWelcome() {
-	cout << name << " " << YEAR << "-" << MONTH << "-" << DAY << endl;
+	cout << NAME << " " << VERSION << endl;
 }
 
 // FEN dedug positions
 #define defFen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 "
-#define tricky_position "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 "
-#define killer_position "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1"
-#define cmk_position "r2q1rk1/ppp2ppp/2n1bn2/2b1p3/3pP3/3P1NPP/PPP1NPB1/R1BQ1RK1 b - - 0 9 "
+//#define tstfen "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 "
 
 // piece encoding
 enum pieces { e, P, N, B, R, Q, K, p, n, b, r, q, k, o };
@@ -319,20 +293,12 @@ int king_offsets[8] = { 16, -16, 1, -1, 15, 17, -15, -17 };
 
 // move list structure
 typedef struct {
-	// move list
+	int count=0;
 	int moves[256];
-
-	// move count
-	int count;
+	void AddMove(int move) {
+		moves[count++] = move;
+	}
 } moves;
-
-/* get_ms() returns the milliseconds elapsed since midnight,
-   January 1, 1970. */
-int get_time_ms() {
-	struct timeb timebuffer;
-	ftime(&timebuffer);
-	return (timebuffer.time * 1000) + timebuffer.millitm;
-}
 
 static vector<string> SplitString(string s) {
 	vector<string> words;
@@ -401,15 +367,6 @@ static void ResetBoard() {
 	castle = 0;
 	enpassant = no_sq;
 }
-
-
-
-
-/***********************************************\
-
-			 MOVE GENERATOR FUNCTIONS
-
-\***********************************************/
 
 // is square attacked
 static inline int is_square_attacked(int square, int side)
@@ -557,14 +514,14 @@ static void PrintAttackedSquares(int side) {
 }
 
 // populate move list
-static inline void add_move(moves* move_list, int move)
+/*static inline void add_move(moves* move_list, int move)
 {
 	// push move into the move list
 	move_list->moves[move_list->count] = move;
 
 	// increment move count
 	move_list->count++;
-}
+}*/
 
 
 // move generator
@@ -594,20 +551,20 @@ static inline void generate_moves(moves* move_list)
 						// pawn promotions
 						if (square >= a7 && square <= h7)
 						{
-							add_move(move_list, encode_move(square, to_square, Q, 0, 0, 0, 0));
-							add_move(move_list, encode_move(square, to_square, R, 0, 0, 0, 0));
-							add_move(move_list, encode_move(square, to_square, B, 0, 0, 0, 0));
-							add_move(move_list, encode_move(square, to_square, N, 0, 0, 0, 0));
+							move_list->AddMove(encode_move(square, to_square, Q, 0, 0, 0, 0));
+							move_list->AddMove(encode_move(square, to_square, R, 0, 0, 0, 0));
+							move_list->AddMove(encode_move(square, to_square, B, 0, 0, 0, 0));
+							move_list->AddMove(encode_move(square, to_square, N, 0, 0, 0, 0));
 						}
 
 						else
 						{
 							// one square ahead pawn move
-							add_move(move_list, encode_move(square, to_square, 0, 0, 0, 0, 0));
+							move_list->AddMove(encode_move(square, to_square, 0, 0, 0, 0, 0));
 
 							// two squares ahead pawn move
 							if ((square >= a2 && square <= h2) && !board[square - 32])
-								add_move(move_list, encode_move(square, square - 32, 0, 0, 1, 0, 0));
+								move_list->AddMove(encode_move(square, square - 32, 0, 0, 1, 0, 0));
 						}
 					}
 
@@ -632,21 +589,21 @@ static inline void generate_moves(moves* move_list)
 									(board[to_square] >= 7 && board[to_square] <= 12)
 									)
 								{
-									add_move(move_list, encode_move(square, to_square, Q, 1, 0, 0, 0));
-									add_move(move_list, encode_move(square, to_square, R, 1, 0, 0, 0));
-									add_move(move_list, encode_move(square, to_square, B, 1, 0, 0, 0));
-									add_move(move_list, encode_move(square, to_square, N, 1, 0, 0, 0));
+									move_list->AddMove(encode_move(square, to_square, Q, 1, 0, 0, 0));
+									move_list->AddMove(encode_move(square, to_square, R, 1, 0, 0, 0));
+									move_list->AddMove(encode_move(square, to_square, B, 1, 0, 0, 0));
+									move_list->AddMove(encode_move(square, to_square, N, 1, 0, 0, 0));
 								}
 
 								else
 								{
 									// casual capture
 									if (board[to_square] >= 7 && board[to_square] <= 12)
-										add_move(move_list, encode_move(square, to_square, 0, 1, 0, 0, 0));
+										move_list->AddMove(encode_move(square, to_square, 0, 1, 0, 0, 0));
 
 									// enpassant capture
 									if (to_square == enpassant)
-										add_move(move_list, encode_move(square, to_square, 0, 1, 0, 1, 0));
+										move_list->AddMove(encode_move(square, to_square, 0, 1, 0, 1, 0));
 								}
 							}
 						}
@@ -664,7 +621,7 @@ static inline void generate_moves(moves* move_list)
 						{
 							// make sure king & next square are not under attack
 							if (!is_square_attacked(e1, black) && !is_square_attacked(f1, black))
-								add_move(move_list, encode_move(e1, g1, 0, 0, 0, 0, 1));
+								move_list->AddMove(encode_move(e1, g1, 0, 0, 0, 0, 1));
 						}
 					}
 
@@ -676,7 +633,7 @@ static inline void generate_moves(moves* move_list)
 						{
 							// make sure king & next square are not under attack
 							if (!is_square_attacked(e1, black) && !is_square_attacked(d1, black))
-								add_move(move_list, encode_move(e1, c1, 0, 0, 0, 0, 1));
+								move_list->AddMove(encode_move(e1, c1, 0, 0, 0, 0, 1));
 						}
 					}
 				}
@@ -697,20 +654,20 @@ static inline void generate_moves(moves* move_list)
 						// pawn promotions
 						if (square >= a2 && square <= h2)
 						{
-							add_move(move_list, encode_move(square, to_square, q, 0, 0, 0, 0));
-							add_move(move_list, encode_move(square, to_square, r, 0, 0, 0, 0));
-							add_move(move_list, encode_move(square, to_square, b, 0, 0, 0, 0));
-							add_move(move_list, encode_move(square, to_square, n, 0, 0, 0, 0));
+							move_list->AddMove(encode_move(square, to_square, q, 0, 0, 0, 0));
+							move_list->AddMove(encode_move(square, to_square, r, 0, 0, 0, 0));
+							move_list->AddMove(encode_move(square, to_square, b, 0, 0, 0, 0));
+							move_list->AddMove(encode_move(square, to_square, n, 0, 0, 0, 0));
 						}
 
 						else
 						{
 							// one square ahead pawn move
-							add_move(move_list, encode_move(square, to_square, 0, 0, 0, 0, 0));
+							move_list->AddMove(encode_move(square, to_square, 0, 0, 0, 0, 0));
 
 							// two squares ahead pawn move
 							if ((square >= a7 && square <= h7) && !board[square + 32])
-								add_move(move_list, encode_move(square, square + 32, 0, 0, 1, 0, 0));
+								move_list->AddMove(encode_move(square, square + 32, 0, 0, 1, 0, 0));
 						}
 					}
 
@@ -735,21 +692,21 @@ static inline void generate_moves(moves* move_list)
 									(board[to_square] >= 1 && board[to_square] <= 6)
 									)
 								{
-									add_move(move_list, encode_move(square, to_square, q, 1, 0, 0, 0));
-									add_move(move_list, encode_move(square, to_square, r, 1, 0, 0, 0));
-									add_move(move_list, encode_move(square, to_square, b, 1, 0, 0, 0));
-									add_move(move_list, encode_move(square, to_square, n, 1, 0, 0, 0));
+									move_list->AddMove(encode_move(square, to_square, q, 1, 0, 0, 0));
+									move_list->AddMove(encode_move(square, to_square, r, 1, 0, 0, 0));
+									move_list->AddMove(encode_move(square, to_square, b, 1, 0, 0, 0));
+									move_list->AddMove(encode_move(square, to_square, n, 1, 0, 0, 0));
 								}
 
 								else
 								{
 									// casual capture
 									if (board[to_square] >= 1 && board[to_square] <= 6)
-										add_move(move_list, encode_move(square, to_square, 0, 1, 0, 0, 0));
+										move_list->AddMove(encode_move(square, to_square, 0, 1, 0, 0, 0));
 
 									// enpassant capture
 									if (to_square == enpassant)
-										add_move(move_list, encode_move(square, to_square, 0, 1, 0, 1, 0));
+										move_list->AddMove(encode_move(square, to_square, 0, 1, 0, 1, 0));
 								}
 							}
 						}
@@ -767,7 +724,7 @@ static inline void generate_moves(moves* move_list)
 						{
 							// make sure king & next square are not under attack
 							if (!is_square_attacked(e8, white) && !is_square_attacked(f8, white))
-								add_move(move_list, encode_move(e8, g8, 0, 0, 0, 0, 1));
+								move_list->AddMove(encode_move(e8, g8, 0, 0, 0, 0, 1));
 						}
 					}
 
@@ -779,7 +736,7 @@ static inline void generate_moves(moves* move_list)
 						{
 							// make sure king & next square are not under attack
 							if (!is_square_attacked(e8, white) && !is_square_attacked(d8, white))
-								add_move(move_list, encode_move(e8, c8, 0, 0, 0, 0, 1));
+								move_list->AddMove(encode_move(e8, c8, 0, 0, 0, 0, 1));
 						}
 					}
 				}
@@ -809,11 +766,11 @@ static inline void generate_moves(moves* move_list)
 						{
 							// on capture
 							if (piece)
-								add_move(move_list, encode_move(square, to_square, 0, 1, 0, 0, 0));
+								move_list->AddMove(encode_move(square, to_square, 0, 1, 0, 0, 0));
 
 							// on empty square
 							else
-								add_move(move_list, encode_move(square, to_square, 0, 0, 0, 0, 0));
+								move_list->AddMove(encode_move(square, to_square, 0, 0, 0, 0, 0));
 						}
 					}
 				}
@@ -843,11 +800,11 @@ static inline void generate_moves(moves* move_list)
 						{
 							// on capture
 							if (piece)
-								add_move(move_list, encode_move(square, to_square, 0, 1, 0, 0, 0));
+								move_list->AddMove(encode_move(square, to_square, 0, 1, 0, 0, 0));
 
 							// on empty square
 							else
-								add_move(move_list, encode_move(square, to_square, 0, 0, 0, 0, 0));
+								move_list->AddMove(encode_move(square, to_square, 0, 0, 0, 0, 0));
 						}
 					}
 				}
@@ -879,13 +836,13 @@ static inline void generate_moves(moves* move_list)
 						// if hits opponent's piece
 						if (!side ? (piece >= 7 && piece <= 12) : ((piece >= 1 && piece <= 6)))
 						{
-							add_move(move_list, encode_move(square, to_square, 0, 1, 0, 0, 0));
+							move_list->AddMove(encode_move(square, to_square, 0, 1, 0, 0, 0));
 							break;
 						}
 
 						// if steps into an empty squre
 						if (!piece)
-							add_move(move_list, encode_move(square, to_square, 0, 0, 0, 0, 0));
+							move_list->AddMove(encode_move(square, to_square, 0, 0, 0, 0, 0));
 
 						// increment target square
 						to_square += bishop_offsets[index];
@@ -919,13 +876,13 @@ static inline void generate_moves(moves* move_list)
 						// if hits opponent's piece
 						if (!side ? (piece >= 7 && piece <= 12) : ((piece >= 1 && piece <= 6)))
 						{
-							add_move(move_list, encode_move(square, to_square, 0, 1, 0, 0, 0));
+							move_list->AddMove(encode_move(square, to_square, 0, 1, 0, 0, 0));
 							break;
 						}
 
 						// if steps into an empty squre
 						if (!piece)
-							add_move(move_list, encode_move(square, to_square, 0, 0, 0, 0, 0));
+							move_list->AddMove(encode_move(square, to_square, 0, 0, 0, 0, 0));
 
 						// increment target square
 						to_square += rook_offsets[index];
@@ -1122,59 +1079,72 @@ static inline void perft_driver(int depth)
 	}
 }
 
-// perft test
-static inline void PerftTest(int depth)
+// Function to put thousands
+// separators in the given integer
+string ThousandSeparator(uint64_t n)
 {
-	printf("\n    Performance test:\n\n");
+	string ans = "";
 
-	// init start time
-	int start_time = get_time_ms();
+	// Convert the given integer
+	// to equivalent string
+	string num = to_string(n);
 
-	// create move list variable
-	moves move_list[1];
+	// Initialise count
+	int count = 0;
 
-	// generate moves
-	generate_moves(move_list);
+	// Traverse the string in reverse
+	for (int i = (int)num.size() - 1; i >= 0; i--) {
+		ans.push_back(num[i]);
 
-	// loop over the generated moves
-	for (int move_count = 0; move_count < move_list->count; move_count++)
-	{
-		// copy board state
-		copy_board();
-
-		// make only legal moves
-		if (!MakeMove(move_list->moves[move_count], all_moves))
-			// skip illegal move
-			continue;
-
-		// cummulative nodes
-		long cum_nodes = nodes;
-
-		// recursive call
-		perft_driver(depth - 1);
-
-		// old nodes
-		long old_nodes = nodes - cum_nodes;
-
-		// restore board state
-		take_back();
-
-		// print current move
-		printf("    move %d: %s%s%c    %ld\n",
-			move_count + 1,
-			square_to_coords[get_move_source(move_list->moves[move_count])],
-			square_to_coords[get_move_target(move_list->moves[move_count])],
-			promoted_pieces[get_move_piece(move_list->moves[move_count])],
-			old_nodes
-		);
+		// If three characters
+		// are traversed
+		if (++count == 3) {
+			ans.push_back(' ');
+			count = 0;
+		}
 	}
 
-	// print results
-	printf("\n    Depth: %d", depth);
-	printf("\n    Nodes: %ld", nodes);
-	printf("\n     Time: %d ms\n\n", get_time_ms() - start_time);
+	// Reverse the string to get
+	// the desired output
+	reverse(ans.begin(), ans.end());
+
+	// If the given string is
+	// less than 1000
+	if (ans.size() % 4 == 0) {
+
+		// Remove ','
+		ans.erase(ans.begin());
+	}
+
+	return ans;
 }
 
+void ShowInfo(uint64_t time, uint64_t nodes) {
+	if (time < 1)
+		time = 1;
+	uint64_t nps = (nodes * 1000) / time;
+	printf("-----------------------------\n");
+	cout << "Time        : " << ThousandSeparator(time) << endl;
+	cout << "Nodes       : " << ThousandSeparator(nodes) << endl;
+	cout << "Nps         : " << ThousandSeparator(nps) << endl;
+	printf("-----------------------------\n");
+}
+
+// perft test
+static inline void PerftTest()
+{
+	printf("Performance test\n");
+
+	// init start time
+	int start_time = clock();
+	int depth = 0;
+	nodes = 0;
+	while (clock() - start_time < 5000) {
+		perft_driver(++depth);
+		printf("%d. %d %ld\n", depth, clock() - start_time, nodes);
+	}
+	ShowInfo(clock() - start_time, nodes);
+}
 
 /***********************************************\
 
@@ -1210,7 +1180,7 @@ static inline int evaluate_position()
 
 				// double panws penalty
 				if (board[square - 16] == P)
-					score -= 100;
+					score -= 64;
 
 				break;
 
@@ -1226,7 +1196,7 @@ static inline int evaluate_position()
 
 				// double pawns penalty
 				if (board[square + 16] == p)
-					score += 100;
+					score += 64;
 
 				break;
 			case n: score -= knight_score[mirror_score[square]]; break;
@@ -1295,7 +1265,7 @@ int pv_length[64];
 int ply = 0;
 
 // score move for move ordering
-static inline int score_move(int move){
+static inline int score_move(int move) {
 	if (pv_table[0][ply] == move)
 		// score 20000 ( search it first )
 		return 20000;
@@ -1370,11 +1340,11 @@ static inline void sort_moves(moves* move_list)
 bool stop = false;
 int g_max_depth = 0;
 long nodeCheck = NODE_CHECK;
-clock_t start_time=0;
+clock_t start_time = 0;
 clock_t g_max_time = 0;
 
 // quiescence search
-static inline int SearchQuiescence(int alpha, int beta, int depth){
+static inline int SearchQuiescence(int alpha, int beta, int depth) {
 	if (++nodes > nodeCheck)
 	{
 		nodeCheck = nodes + NODE_CHECK;
@@ -1574,7 +1544,7 @@ static void SearchIterate(int depth, int time)
 	for (int current_depth = 1; current_depth <= depth; current_depth++)
 	{
 		// search position with current depth 3
-		score = SearchAlpha(-MAX_SCORE,MAX_SCORE, current_depth);
+		score = SearchAlpha(-MAX_SCORE, MAX_SCORE, current_depth);
 		if (stop)
 			break;
 		clock_t elapsed = clock() - start_time;
@@ -1593,7 +1563,7 @@ static void SearchIterate(int depth, int time)
 		{
 			cout << square_to_coords[get_move_source(pv_table[0][i])]
 				<< square_to_coords[get_move_target(pv_table[0][i])]
-					<< PieceToPromotion(get_move_piece(pv_table[0][i]));
+				<< PieceToPromotion(get_move_piece(pv_table[0][i]));
 		}
 		cout << endl;
 		if (elapsed > time / 8)
@@ -1604,20 +1574,12 @@ static void SearchIterate(int depth, int time)
 	cout << "bestmove "
 		<< square_to_coords[get_move_source(pv_table[0][0])]
 		<< square_to_coords[get_move_target(pv_table[0][0])]
-			<< PieceToPromotion(get_move_piece(pv_table[0][0]))
-				<< endl;
+		<< PieceToPromotion(get_move_piece(pv_table[0][0]))
+		<< endl;
 }
 
-
-/***********************************************\
-
-			  UCI PROTOCOL FUNCTIONS
-
-\***********************************************/
-
 // parse move (from UCI)
-int ParseMove(const char* move_str)
-{
+int ParseMove(const char* move_str) {
 	// init move list
 	moves move_list[1];
 
@@ -1770,7 +1732,7 @@ void UciCommand(string line) {
 	vector<string> commands = SplitString(line);
 	fflush(stdout);
 	if (commands[0] == "uci") {
-		cout << "id name " << name << endl;
+		cout << "id name " << NAME << endl;
 		cout << "uciok" << endl;
 	}
 	else if (commands[0] == "isready") {
@@ -1787,6 +1749,8 @@ void UciCommand(string line) {
 	}
 	else if (commands[0] == "print")
 		PrintBoard();
+	else if (commands[0] == "perft")
+		PerftTest();
 	else if (commands[0] == "test")
 		UciTest();
 	else if (commands[0] == "quit")
