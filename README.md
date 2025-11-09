@@ -13,3 +13,13 @@
     <img src="https://img.shields.io/github/v/release/Thibor/Rapfox?color=blue&label=Latest%20release&style=for-the-badge">
     <img src="https://img.shields.io/github/last-commit/Thibor/Rapfox?color=critical&style=for-the-badge">
 </div>
+
+## Features
+
+- [x] Alpha beta pruning<br>
+- [x] Quiescence search<br>
+- [ ] Transposition table
+- [ ] Bitboard<br>
+- [ ] Null move pruning<br>
+- [ ] Futility pruning<br>
+- [ ] Razoring<br>

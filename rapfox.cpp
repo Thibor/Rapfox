@@ -482,48 +482,6 @@ static inline int is_square_attacked(int square, int side)
 	return 0;
 }
 
-// print attack map
-static void PrintAttackedSquares(int side) {
-	printf("\n");
-	printf("    Attacking side: %s\n\n", !side ? "white" : "black");
-
-	// loop over board ranks
-	for (int rank = 0; rank < 8; rank++)
-	{
-		// loop over board files
-		for (int file = 0; file < 16; file++)
-		{
-			// init square
-			int square = rank * 16 + file;
-
-			// print ranks
-			if (file == 0)
-				printf(" %d  ", 8 - rank);
-
-			// if square is on board
-			if (!(square & 0x88))
-				printf("%c ", is_square_attacked(square, side) ? 'x' : '.');
-
-		}
-
-		// print new line every time new rank is encountered
-		printf("\n");
-	}
-
-	printf("\n    a b c d e f g h\n\n");
-}
-
-// populate move list
-/*static inline void add_move(moves* move_list, int move)
-{
-	// push move into the move list
-	move_list->moves[move_list->count] = move;
-
-	// increment move count
-	move_list->count++;
-}*/
-
-
 // move generator
 static inline void generate_moves(moves* move_list)
 {
